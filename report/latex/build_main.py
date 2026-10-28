@@ -24,7 +24,7 @@ AI = r"""
 This research was supported in part through research cyberinfrastructure resources and services provided by the Partnership for an Advanced Computing Environment (PACE) at the Georgia Institute of Technology, Atlanta, Georgia, USA.
 
 \section*{AI Use Statement}
-I used Claude Code (Anthropic) as an assistant for ideation, coding, experiment analysis and drafting the text. I set the research direction and decided what to submit. I have reviewed all AI-assisted work and take full responsibility for the final content of this paper.
+I used Claude Code (Anthropic) as an assistant for ideation, coding, experiment analysis and drafting the text. I did not use generative AI tools to set the research direction or to make the final choice of which submissions to nominate and report; I made those decisions myself. I have reviewed all AI-assisted work and take full responsibility for the final content of this paper.
 """
 
 PREAMBLE = r"""\documentclass{article}

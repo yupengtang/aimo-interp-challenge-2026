@@ -130,7 +130,7 @@ This research was supported in part through research cyberinfrastructure resourc
 
 ## AI Use Statement
 
-I used Claude Code (Anthropic) as an assistant for ideation, coding, experiment analysis and drafting the text. I set the research direction and decided what to submit. I have reviewed all AI-assisted work and take full responsibility for the final content of this report.
+I used Claude Code (Anthropic) as an assistant for ideation, coding, experiment analysis and drafting the text. I did not use generative AI tools to set the research direction or to make the final choice of which submissions to nominate and report; I made those decisions myself. I have reviewed all AI-assisted work and take full responsibility for the final content of this report.
 
 ## Appendix A. Reproducing the nominated method
 
