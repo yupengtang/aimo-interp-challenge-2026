@@ -42,7 +42,7 @@ Two facts about the data shape everything below.
 
 **Runtime.** Views run one at a time, on purpose: a padded batch moves hidden states enough to flip one verdict in six for two checkpoints, and the artifact was fitted on unpadded features. On the competition worker under per-problem calls every case finished in 5 to 16 seconds (21 cases in 189 s on Main, 14 in 81 s on Small), with no timeouts and no case answered by the fallback. If time ever ran short, rewrite families are dropped in order, and any failure returns the constant fallback, so a case cannot become invalid.
 
-## 4. Does the white-box signal matter? (ablation)
+## 4. Ablation: the white-box component
 
 The method has exactly one non-white-box path: when the hidden-state features cannot be computed it returns the constant "not robust". Removing the white-box component therefore turns it into the never-robust baseline, which we scored on the same validation sets.
 
@@ -53,7 +53,7 @@ The method has exactly one non-white-box path: when the hidden-state features ca
 
 The run logs confirm that no case fell back to the constant, so every verdict in the first column came from the model's internals. Two cases per track is a small margin on sets this size (one case is worth 4.8 points on Main and 7.1 on Small), and we do not claim more than that the white-box features carry the method above the baseline on both tracks.
 
-On the training labels the picture is weaker, and we report it rather than hide it. On the 34 labelled rows of the four small checkpoints in `train-main-v2` the method scores accuracy 0.44 and AUC 0.42 [0.18, 0.66]. We read this together with Section 2: train labels follow the problem, so a per-model signal has little to gain there, while validation rewards exactly the within-problem separation a per-model signal can provide. It is a consistent reading, not a proof; the evidence on both sides is small.
+On the training labels the picture is weaker. On the 34 labelled rows of the four small checkpoints in `train-main-v2` the method scores accuracy 0.44 and AUC 0.42 [0.18, 0.66]. We read this together with Section 2: train labels follow the problem, so a per-model signal has little to gain there, while validation rewards exactly the within-problem separation a per-model signal can provide. Both samples are small, so we offer this as an interpretation only.
 
 ## 5. What separates configurations within a problem
 
@@ -69,7 +69,7 @@ Robustness is a small maximum drop in accuracy under perturbation. A configurati
 
 "Robust if own accuracy is below 0.05 or at least 0.95" reaches 0.78 accuracy and 0.75 balanced accuracy there. With the expert "no solution" perturbation included the top group drops to 36% robust: a configuration that always answers loses accuracy when it keeps answering a problem that has no answer.
 
-**train-main-v2.** With the majority answer of all gpt-oss samples as reference, configurations matching it in at least 95% of their samples are robust in 21 of 22 rows; those between 50 and 95% in half the rows. The small checkpoints almost never finish within the 8192 tokens we could afford, so their near-zero accuracy is truncation, not failure.
+**train-main-v2.** With the majority answer of all gpt-oss samples as reference, configurations matching it in at least 95% of their samples are robust in 21 of 22 rows; those between 50 and 95% in half the rows. The small checkpoints almost never finish within the 8192 tokens we could afford, so their near-zero accuracy mostly reflects truncation.
 
 **Two attempts to use it,** both black-box and both worse:
 
@@ -84,7 +84,7 @@ For every problem not seen before in the run, gpt-oss-120b gets the organizers' 
 
 On the 71 labelled training rows the share of the modal answer has AUC 0.90 [0.78, 0.97], and the rule resamples to 0.84 accuracy and 0.85 balanced accuracy. On validation it scored 13/21 and 9/14 under the old protocol and 13/21 and 8/14 under per-problem calls. When the judge is settled on a problem, the case is robust in 43 of 45 train rows but in 6 of 10 validation cases on each track. With two configurations of a problem carrying opposite labels, any one-verdict-per-problem rule is right on exactly one of them; with more configurations it can only match each problem's majority. Train, where labels follow the problem, cannot show this ceiling.
 
-**The number we almost reported.** A first run with four samples per problem made "all four agree" score 0.87 balanced accuracy. A second independent draw scored 0.76, and resampling put the rule at 0.68 with a standard deviation of 0.07. The first draw was about two and a half standard deviations lucky, and we had chosen the threshold on it. Every judge estimate above is therefore a resampled mean.
+**An early overestimate.** A first run with four samples per problem made "all four agree" score 0.87 balanced accuracy. A second independent draw scored 0.76, and resampling put the rule at 0.68 with a standard deviation of 0.07. The first draw was about two and a half standard deviations lucky, and we had chosen the threshold on it. Every judge estimate above is therefore a resampled mean.
 
 ## 7. The judge, read from hidden states
 
@@ -100,7 +100,7 @@ The judge works, but it costs about 50 s of sampling per problem, and it is blac
 
 On the training rows the probe is close to the judge and far above the stability method, but it is not separable from a count of `$` signs: 36 problems cannot tell them apart. The pool can. Across 720 problems the cross-validated probe correlates 0.66 with the judge's modal share, while statement length and `$` count correlate 0.32 and 0.27. Most of what the probe reads is therefore not surface form. Removing the white-box component again leaves only the constant fallback. Run as the competition harness runs it, the bundle loads gpt-oss once (565 s cold on our cluster) and then answers 36 problems in about 7 s, with no case on the fallback.
 
-The probe inherits the judge's limitation: it gives one verdict per problem, so on per-problem-balanced data it can only match each problem's majority (Section 6). On validation it scored 11/21 on Main and 7/14 on Small, exactly the never-robust baseline (scored on the organizers' temporary evaluation queue during the Codabench outage of late October). That is the ceiling of Section 6 made concrete: a signal read from the problem alone, however well it ranks problems, cannot separate the configurations that validation was built to separate. We report it as an efficient and faithful white-box copy of the judge, not as a better detector, and it is not one of our nominated submissions. Two of the 36 training problems got a different verdict in the bundle run than in the offline features; gpt-oss is a mixture-of-experts model, and tiny numerical differences between GPUs can change the experts a token is routed to.
+The probe inherits the judge's limitation: it gives one verdict per problem, so on per-problem-balanced data it can only match each problem's majority (Section 6). On validation it scored 11/21 on Main and 7/14 on Small, exactly the never-robust baseline (scored on the organizers' temporary evaluation queue during the Codabench outage of late October). That is the ceiling of Section 6 made concrete: a signal read from the problem alone, however well it ranks problems, cannot separate the configurations that validation was built to separate. We report it as a cheap white-box copy of the judge; it is not one of our nominated submissions. Two of the 36 training problems got a different verdict in the bundle run than in the offline features; gpt-oss is a mixture-of-experts model, and tiny numerical differences between GPUs can change the experts a token is routed to.
 
 ## 8. What did not work
 
