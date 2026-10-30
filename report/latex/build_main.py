@@ -45,7 +45,7 @@ PREAMBLE = r"""\documentclass{article}
 \providecommand{\real}[1]{#1}
 \setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
 
-\title{Hidden-state stability as a white-box robustness signal, and why problem-level judges stall on per-problem-balanced data}
+\title{Predicting Reasoning Robustness from Hidden-State Stability}
 \author{Yupeng Tang\\Georgia Institute of Technology\\\texttt{yupengtang@gatech.edu}}
 
 \begin{document}

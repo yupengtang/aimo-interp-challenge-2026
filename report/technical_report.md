@@ -1,4 +1,4 @@
-# Hidden-state stability as a white-box robustness signal, and why problem-level judges stall on per-problem-balanced data
+# Predicting Reasoning Robustness from Hidden-State Stability
 
 **Yupeng Tang**, Georgia Institute of Technology
 Codabench participant `ytang`. Nominated method: representation stability (white-box), Main and Small tracks.
