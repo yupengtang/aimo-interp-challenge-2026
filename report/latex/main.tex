@@ -25,15 +25,15 @@
 \noindent Code, data lists and submission bundles: \url{https://github.com/yupengtang/aimo-interp-challenge-2026}. Codabench participant \texttt{ytang}.\par\medskip
 \section{Summary}\label{summary}
 
-The nominated method never generates text. For each problem it shows the evaluated model the original statement and six rewrites that cannot change the answer, runs one forward pass per view, and measures how far the model's own hidden state and next-token distribution move. A logistic regression over those movements, calibrated separately for each checkpoint, gives the verdict. Every number it uses is read from inside the model being judged.
+The nominated method never generates text. For each problem it shows the evaluated model the original statement and six rewrites that cannot change the answer, runs one forward pass per view, and measures how far the model's own hidden state and next-token distribution move. A logistic regression over those movements, calibrated separately for each checkpoint, gives the verdict. Every number it uses comes from the model being judged. On the Small track we nominate the same pipeline restricted to the hidden-state measurements.
 
-Under the per-problem evaluation the organizers introduced on 15 October, it scores 13/21 on the Main track and 9/14 on the Small track. Removing the white-box component leaves only its constant fallback, which scores 11/21 and 7/14 on the same sets.
+Under the per-problem evaluation the organizers introduced on 15 October, the full method scores 13/21 on the Main track and the hidden-state variant scores 10/14 on the Small track. A strict ablation separates the two signals. On Small the hidden states alone lift the method from its constant fallback, 7/14, to 10/14. On Main they score 10/21, below the fallback's 11/21, and the signal comes from the output distribution instead (Section 4).
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.4356}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1386}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.1386}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2871}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
 Method
@@ -48,10 +48,10 @@ Signal
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Representation stability (nominated) & 13/21 = 0.62 & 9/14 = 0.64 & evaluated model's hidden states \\
-Same method without the white-box component & 11/21 = 0.52 & 7/14 = 0.50 & none (constant) \\
+Representation stability, 31 features (Main entry) & 13/21 = 0.62 & 9/14 = 0.64 & hidden states, output distribution \\
+Hidden-state features only (Small entry) & 10/21 = 0.48 & 10/14 = 0.71 & evaluated model's hidden states \\
 Problem-level judge (black-box comparison) & 13/21 = 0.62 & 8/14 = 0.57 & gpt-oss-120b's answers \\
-The judge read from gpt-oss hidden states (Section 7, white-box) & 11/21 = 0.52 & 7/14 = 0.50 & gpt-oss-120b's hidden states \\
+Judge read from gpt-oss hidden states (Section 7) & 11/21 = 0.52 & 7/14 = 0.50 & gpt-oss-120b's hidden states \\
 \end{longtable}
 
 The comparison method, a judge that asks gpt-oss-120b how settled it is on the problem, reaches 0.84 accuracy on the official training labels and falls to 0.62 on validation. The organizers later explained why: validation was built so that every problem has both robust and non-robust configurations, and the test set follows the same construction. A verdict that depends only on the problem is then close to chance by design. The stability signal is computed per model, from that model's own internals, so it can disagree across configurations of the same problem. That is the property the evaluation rewards, and the main reason we nominate it.
@@ -72,7 +72,7 @@ Two properties of the data shape everything below. In training, labels follow th
 
 \paragraph{White-box features.} One forward pass per view over the chat-formatted prompt of the evaluated checkpoint. Between the original and each rewrite we take the cosine similarity of the last prompt token's hidden state at four depths, and the KL divergence of the next-token distribution. These are aggregated as mean and minimum within each family, plus the prompt length, giving 31 features. Depths are named by quartile of the layer stack, so one coefficient vector fits checkpoints with different layer counts. Every feature compares a model with itself, so the features are dimensionless and comparable across checkpoints in a way raw hidden states are not.
 
-\paragraph{Training.} L2-regularised logistic regression with C = 0.003 on 154 DeepSeek-R1-0528-Qwen3-8B cases from the public MATH labels~\citep{hendrycks2021math} (38 robust), with the olympiad problems held out. C was chosen by cross-validation grouped by problem text over five seeds; in-domain grouped CV AUC is 0.693.
+\paragraph{Training.} L2-regularised logistic regression with C = 0.003 on 154 DeepSeek-R1-0528-Qwen3-8B cases from the public MATH labels~\citep{hendrycks2021math} (38 robust), with the olympiad problems held out. C was chosen by cross-validation grouped by problem text over five seeds; in-domain grouped CV AUC is 0.693. The Small-track entry keeps only the 24 hidden-state features; the same search picks C = 0.3 for it (CV AUC 0.694).
 
 \paragraph{Calibration.} For each checkpoint, features are standardised with statistics from 226 problems whose labels we did not use: 216 public olympiad problems from AIME and AMC collections, and 10 MATH problems whose only labels belong to a non-competition model. The threshold is the median score on that pool, so the detector calls about half the cases robust, which matches the balanced construction of validation and test.
 
@@ -80,36 +80,35 @@ Two properties of the data shape everything below. In training, labels follow th
 
 \section{Ablation: the white-box component}\label{ablation-the-white-box-component}
 
-The method has exactly one non-white-box path: when the hidden-state features cannot be computed it returns the constant ``not robust''. Removing the white-box component therefore turns it into the never-robust baseline, which we scored on the same validation sets.
+The full method mixes 24 hidden-state cosines with six divergences of the next-token distribution, an output-level signal the organizers do not count as white-box, and prompt length. We refit the classifier on each part with the same training cases, search over C and per-checkpoint calibration, and scored each variant on both validation sets. With no features the method returns its constant fallback.
 
 \begin{longtable}[]{@{}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
-  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.5676}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2162}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.2162}}@{}}
 \toprule\noalign{}
 \begin{minipage}[b]{\linewidth}\raggedright
-Track
+Features used
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-With hidden-state features
+Main (21 cases)
 \end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Without (constant fallback)
-\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
-Difference
+Small (14 cases)
 \end{minipage} \\
 \midrule\noalign{}
 \endhead
 \bottomrule\noalign{}
 \endlastfoot
-Main & 13/21 = 0.62 & 11/21 = 0.52 & +2 cases \\
-Small & 9/14 = 0.64 & 7/14 = 0.50 & +2 cases \\
+All 31 (Main entry) & 13/21 = 0.62 & 9/14 = 0.64 \\
+24 hidden-state cosines (Small entry) & 10/21 = 0.48 & 10/14 = 0.71 \\
+6 next-token divergences, prompt length & 14/21 = 0.67 & 10/14 = 0.71 \\
+None (constant fallback) & 11/21 = 0.52 & 7/14 = 0.50 \\
 \end{longtable}
 
-The run logs confirm that no case fell back to the constant, so every verdict in the first column came from the model's internals. Two cases per track is a small margin on sets this size (one case is worth 4.8 points on Main and 7.1 on Small), and we do not claim more than that the white-box features carry the method above the baseline on both tracks.
+On Small the hidden states carry the method by themselves. Removing them from the Small entry leaves the constant, a loss of three cases or 21 points; in its run log every case took about six seconds, the time its forward passes need. On Main they do not. Hidden states alone score one case below the constant, while the output-level features alone score one case above the full method, so we make no white-box claim for the Main entry. Main also evaluates gpt-oss-120b, a mixture-of-experts model far larger than the four checkpoints of Small, and a cosine feature calibrated across all five may not carry over to it; 21 cases cannot test that, and one case is within run-to-run noise (Section 9).
 
-The fitted coefficients show what the detector reads. Of the total absolute weight (features standardised per checkpoint), 79\% sits on hidden-state cosine similarities, 16\% on the divergence of the next-token distribution, which is an output-level signal, and 5\% on prompt length. Weight grows with depth, from 15\% on the first quartile of the layer stack to 23\% on the last, and the three rewrite families get roughly a third each. The signs differ by family: a state that stays put under an inserted sentence or a neutral wrapper points to a robust case, while stability under transposed letters in the deeper layers carries the opposite sign. The features are correlated and the regularisation is strong, so we read these numbers as a description of the fitted model, not as causal effects.
+The weights of the full model warn against reading importance from coefficients. Of its total absolute weight, 79\% sits on hidden-state cosines, 16\% on the output divergences and 5\% on prompt length. Yet on Main the divergences and prompt length, 21\% of the weight, do all the work. The features are correlated and the regularisation is strong, so the coefficients describe the fit, and only the ablation says what each part contributes.
 
-On the training labels the picture is weaker. On the 34 labelled rows of the four small checkpoints in \texttt{train-main-v2} the method scores accuracy 0.44 and AUC 0.42 {[}0.18, 0.66{]}. We read this together with Section 2: train labels follow the problem, so a per-model signal has little to gain there, while validation rewards exactly the within-problem separation a per-model signal can provide. Both samples are small, so we offer this as an interpretation only.
+On the 34 labelled rows of the four small checkpoints in \texttt{train-main-v2} the full method scores accuracy 0.44 and AUC 0.42 {[}0.18, 0.66{]}. Train labels follow the problem (Section 2), so a per-model signal has little to gain there; both samples are small.
 
 \section{What separates configurations within a problem}\label{what-separates-configurations-within-a-problem}
 
@@ -119,7 +118,7 @@ Figure 1 shows this on the public sample (\texttt{aimo-interp-challenge-sample-f
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.6\linewidth]{fig_ushape.pdf}
+\includegraphics[width=0.54\linewidth]{fig_ushape.pdf}
 \caption{Share of robust cases by the configuration's own accuracy on the original problem, on the 71 cases of the public sample (Wilson 95\% intervals). A configuration that never solves the problem is always robust, one that solves it only some of the time is robust about half the time, and one that almost always solves it is robust in most cases.}
 \label{fig:ushape}
 \end{figure}
@@ -128,7 +127,7 @@ Figure 1 shows this on the public sample (\texttt{aimo-interp-challenge-sample-f
 
 The same pattern appears on \texttt{train-main-v2}. With the majority answer of all gpt-oss samples as reference, configurations matching it in at least 95\% of their samples are robust in 21 of 22 rows; those between 50 and 95\% in half the rows. The small checkpoints almost never finish within the 8192 tokens we could afford, so their near-zero accuracy mostly reflects truncation.
 
-We tried two black-box ways of using this, and both did worse than the judge. Inverting the judge for gpt-oss configurations scored 11/21 on Main, against 13/21. Sampling each gpt-oss configuration at its own effort (8 samples, 4096 or 6144 tokens, robust if at least 7 match the reference) scored 0.75 accuracy on train against 0.83 for the judge, because unfinished high-effort samples counted as mismatches, and it would also need about 2600 s for 18 problems on an H200.
+We tried two black-box ways of using this, and both did worse than the judge. Inverting the judge for gpt-oss configurations scored 11/21 on Main, against 13/21. Sampling each gpt-oss configuration at its own effort (8 samples, 4096 or 6144 tokens, robust if at least 7 match the reference) scored 0.75 accuracy on train against 0.83 for the judge, because unfinished high-effort samples counted as mismatches.
 
 This is the strongest argument we have for a white-box route: the quantity that separates configurations is a property of the evaluated model on that problem, and reading it from a few forward passes is far cheaper than estimating it by sampling.
 
@@ -167,9 +166,9 @@ Text only: fewer \texttt{\$} signs & none & 0.71 \\
 Text only: shorter statement & none & 0.65 \\
 \end{longtable}
 
-On the training rows the probe is close to the judge and far above the stability method, but it is not separable from a count of \texttt{\$} signs: 36 problems cannot tell them apart. The pool can. Across 720 problems the cross-validated probe correlates 0.66 with the judge's modal share, while statement length and \texttt{\$} count correlate 0.32 and 0.27. Most of what the probe reads is therefore not surface form. Removing the white-box component again leaves only the constant fallback. Run as the competition harness runs it, the bundle loads gpt-oss once (565 s cold on our cluster) and then answers 36 problems in about 7 s, with no case on the fallback.
+On the training rows the probe is close to the judge and far above the stability method, but it is not separable from a count of \texttt{\$} signs: 36 problems cannot tell them apart. The pool can. Across 720 problems the cross-validated probe correlates 0.66 with the judge's modal share, while statement length and \texttt{\$} count correlate 0.32 and 0.27. Most of what the probe reads is therefore not surface form. Run as the competition harness runs it, the bundle loads gpt-oss once (565 s cold on our cluster) and then answers 36 problems in about 7 s, with no case on the fallback.
 
-The probe inherits the judge's limitation: it gives one verdict per problem, so on per-problem-balanced data it can only match each problem's majority (Section 6). On validation it scored 11/21 on Main and 7/14 on Small, exactly the never-robust baseline (scored on the organizers' temporary evaluation queue during the Codabench outage of late October). That is the ceiling of Section 6 made concrete: a signal read from the problem alone, however well it ranks problems, cannot separate the configurations that validation was built to separate. We report it as a cheap white-box copy of the judge; it is not one of our nominated submissions.
+The probe inherits the judge's limitation: it gives one verdict per problem, so on per-problem-balanced data it can only match each problem's majority (Section 6). On validation it scored 11/21 on Main and 7/14 on Small, exactly the never-robust baseline (scored on the organizers' temporary queue during the Codabench outage). That is the ceiling of Section 6 made concrete: a signal read from the problem alone, however well it ranks problems, cannot separate the configurations that validation was built to separate. We report it as a cheap white-box copy of the judge; it is not one of our nominated submissions.
 
 \section{What did not work}\label{what-did-not-work}
 
@@ -197,16 +196,13 @@ Self-labels from answer-format perturbations & Agreement 0.31, majority baseline
 Per-checkpoint priors & Probes within one case of the baseline & Section 2 \\
 The evaluated model's own uncertainty over a greedy 2048-token trace & Best AUC 0.71 {[}0.56, 0.85{]}; no gain added to the judge & No small checkpoint finishes in 2048 tokens \\
 Judge's reaction to contradictions it writes itself & AUC 0.74 to 0.79 alone on train; no gain on train or validation & Redundant once agreement is measured well \\
-Judge inverted for gpt-oss; own-effort sampling & 11/21; 0.75 on train & Section 5 \\
 \end{longtable}
 
-On MATH, ``robust'' mostly means ``hard'': longer problems, longer traces and failing to finish all predict a robust label there. The robust rate by prompt-length tertile is 0.05, 0.35 and 0.33, and prompt length alone reaches grouped CV AUC 0.713. On \texttt{train-main-v2} it is the easy problems that are robust. Anything fitted on the MATH sample should be checked for this sign flip before it is trusted on competition problems.
-
-Truncation can also fake a consistency signal. With a 4096-token budget, 45\% of DeepSeek samples had no answer, against 22\% at 8192. Counting an unfinished sample as a disagreement turns consistency into a measure of trace length.
+On MATH, ``robust'' mostly means ``hard'': longer problems, longer traces and failing to finish all predict a robust label there. The robust rate by prompt-length tertile is 0.05, 0.35 and 0.33, and prompt length alone reaches grouped CV AUC 0.713. On \texttt{train-main-v2} it is the easy problems that are robust. Anything fitted on MATH should be checked for this sign flip. Truncation can also fake consistency: at 4096 tokens 45\% of DeepSeek samples had no answer (22\% at 8192), and counting them as disagreements measures trace length.
 
 \section{Limitations}\label{limitations}
 
-The public validation sets have 21 and 14 cases. The white-box margin over the constant baseline is two cases per track, and the stability method and the judge tie on Main. The classifier was trained on one model's MATH labels, and its training-set accuracy on competition checkpoints is poor (Section 4), so its behaviour on the private problems is uncertain. The median threshold assumes a balanced test set, which the organizers' construction suggests but did not state for test. The first submission of this method scored 13/21 and then 12/21 on the same public set, a nondeterminism we did not trace; the per-problem run reported here is a single run.
+The validation sets have 21 and 14 cases, the white-box result rests on three Small cases, and the same bundle once scored 13/21 and then 12/21, a nondeterminism we did not trace.
 
 \section*{Acknowledgements}
 This research was supported in part through research cyberinfrastructure resources and services provided by the Partnership for an Advanced Computing Environment (PACE) at the Georgia Institute of Technology, Atlanta, Georgia, USA.
@@ -225,7 +221,7 @@ I used Claude Code (Anthropic) as an assistant for ideation, coding, experiment 
 
 \paragraph{Unlabelled calibration data.} \texttt{AI-MO/aimo-validation-aime}, \texttt{AI-MO/aimo-validation-amc}, \texttt{opencompass/AIME2025} and \texttt{Maxwell-Jia/AIME\_2024}, deduplicated, with any problem that appears in the official data removed (216 problems), plus 10 problems from \texttt{hendrycks-math-test-reference-100} whose labels exist only for Llama-3.1-8B; those labels are not read.
 
-\paragraph{Steps.} \texttt{code/perturb\_stability.py} computes the 31 features for every checkpoint. \texttt{code/train\_stability\_model.py\ -\/-out\ stability\_crossmodel.joblib} fits the classifier and the per-checkpoint calibration. The bundle in \texttt{submission\_stability/} is \texttt{solution.py}, \texttt{scoring.py}, \texttt{perturbations.py}, \texttt{budget.py} and \texttt{stability\_crossmodel.joblib}; the Small-track zip adds an empty \texttt{small.txt}. \texttt{code/trainv2\_bundle\_eval.py} scores it on the official training rows.
+\paragraph{Steps.} \texttt{code/perturb\_stability.py} computes the 31 features for every checkpoint. \texttt{code/train\_stability\_model.py\ -\/-out\ stability\_crossmodel.joblib} fits the classifier and the per-checkpoint calibration. The bundle in \texttt{submission\_stability/} is \texttt{solution.py}, \texttt{scoring.py}, \texttt{perturbations.py}, \texttt{budget.py} and \texttt{stability\_crossmodel.joblib}; the Small-track zip adds an empty \texttt{small.txt}. \texttt{code/trainv2\_bundle\_eval.py} scores it on the official training rows. The Small-track entry is the same bundle with the artifact from \texttt{train\_stability\_model.py\ -\/-drop-prefix\ kl\_\ -\/-drop-prefix\ prompt\_tokens} (24 features, in \texttt{submission\_stability\_hidden/}); \texttt{-\/-drop-prefix\ cos\_} gives the output-level variant of Section 4.
 
 \paragraph{Comparison method and Section 5.} The judge is \texttt{submission/solution.py} (a single file). \texttt{code/nosol\_experiment.py}, \texttt{code/judge\_rules.py} and \texttt{code/trainv2\_bundle\_test.py} reproduce Section 6; \texttt{code/own\_acc\_rule.py} reproduces Section 5.
 
