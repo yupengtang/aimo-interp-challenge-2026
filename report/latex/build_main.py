@@ -16,6 +16,14 @@ body = cite_once(body, "cases from the public MATH labels", r"~\citep{hendrycks2
 body = cite_once(body, "For every problem not seen before in the run, gpt-oss-120b", r"~\citep{openai2025gptoss}")
 body = cite_once(body, "720 unlabelled olympiad problems from Omni-MATH", r"~\citep{gao2024omnimath}")
 
+# Run-in paragraph labels ("**Views.** ...") become \paragraph headings rather than bold text.
+def run_in_headings(text):
+    return re.sub(r"^\\textbf\{([^{}]+?)\}\s", lambda m: "\\paragraph{" + m.group(1) + "} ", text, flags=re.M)
+
+
+body = run_in_headings(body)
+app = run_in_headings(app)
+
 # pandoc writes the appendix heading as its own \section; the template adds one
 app = re.sub(r"^\\section\{.*?\}\\label\{.*?\}\s*", "", app, count=1, flags=re.S)
 
@@ -59,3 +67,18 @@ tex = (PREAMBLE + body + AI
 with open("main.tex", "w", encoding="utf-8", newline="\n") as fh:
     fh.write(tex)
 print("ok")
+
+# The anonymous version for review: double-blind style, no author, no repository link, no acknowledgements.
+AUTHOR = r"\author{Yupeng Tang\\Georgia Institute of Technology\\\texttt{yupengtang@gatech.edu}}"
+CODE_LINE = re.search(r"\\noindent Code, data lists and submission bundles: .*?\\par\\medskip", tex).group(0)
+ACK = re.search(r"\n\\section\*\{Acknowledgements\}\n[^\n]*\n", tex).group(0)
+assert AUTHOR in tex
+blind = (tex.replace(r"\usepackage[sglblindworkshop, final]{neurips_2026}", r"\usepackage[dblblindworkshop]{neurips_2026}")
+            .replace(AUTHOR, r"\author{Anonymous Author(s)}")
+            .replace(CODE_LINE, r"\noindent Code, data lists and submission bundles are in the supplementary material.\par\medskip")
+            .replace(ACK, "\n"))
+for needle in ("dblblindworkshop", "Anonymous Author(s)", "supplementary material"):
+    assert needle in blind, needle
+assert "Yupeng" not in blind and "gatech" not in blind and "Acknowledgements" not in blind
+with open("main_blind.tex", "w", encoding="utf-8", newline="\n") as fh:
+    fh.write(blind)
