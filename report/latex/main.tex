@@ -12,6 +12,7 @@
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{longtable,array,calc}
+\usepackage{graphicx}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \providecommand{\real}[1]{#1}
 \setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
@@ -55,7 +56,9 @@ The judge read from gpt-oss hidden states (Section 7, white-box) & 11/21 = 0.52 
 
 The comparison method, a judge that asks gpt-oss-120b how settled it is on the problem, reaches 0.84 accuracy on the official training labels and falls to 0.62 on validation. The organizers later explained why: validation was built so that every problem has both robust and non-robust configurations, and the test set follows the same construction. A verdict that depends only on the problem is then close to chance by design. The stability signal is computed per model, from that model's own internals, so it can disagree across configurations of the same problem. That is the property the evaluation rewards, and the main reason we nominate it.
 
-Section 5 adds what we found about which configuration of a problem breaks: in the labelled data the configuration's own accuracy on the original problem separates the two in a U shape. We could not measure it well enough within the time limit to use it.
+Section 5 adds what we found about which configuration of a problem breaks: in the labelled data the configuration's own accuracy on the original problem separates the two in a U shape (Figure 1). We could not measure it well enough within the time limit to use it.
+
+Beyond the leaderboard, we think three things here are useful to others. The detector is cheap: seven forward passes of the evaluated model, no generated text, 5 to 16 seconds per case. We show, with the organizers' construction and our own measurements, why any verdict that depends only on the problem stalls on per-problem-balanced data, however well it ranks problems. And we document the approaches that failed, including a sign flip between MATH and competition problems in what ``robust'' correlates with, so that others do not repeat them.
 
 \section{The setting}\label{the-setting}
 
@@ -110,19 +113,14 @@ On the training labels the picture is weaker. On the 34 labelled rows of the fou
 
 Robustness is a small maximum drop in accuracy under perturbation. A configuration that never solves the original problem has nothing to lose, so it is robust by construction. One that always solves it is robust unless a perturbation breaks it. One that solves it only part of the time can lose accuracy from sampling alone, because the drop is a maximum over several noisy estimates. That predicts a U shape in the configuration's own accuracy, and the labelled data shows one.
 
-On the public sample (\texttt{aimo-interp-challenge-sample-full}: 10 problems, 8 configurations, the competition labelling rule, expert-written perturbation types excluded), the robust share by the configuration's own accuracy is:
+Figure 1 shows this on the public sample (\texttt{aimo-interp-challenge-sample-full}: 10 problems, 8 configurations, the competition labelling rule, expert-written perturbation types excluded, 71 cases).
 
-\begin{longtable}[]{@{}lll@{}}
-\toprule\noalign{}
-Own accuracy on the original problem & Rows & Robust \\
-\midrule\noalign{}
-\endhead
-\bottomrule\noalign{}
-\endlastfoot
-below 0.05 & 20 & 100\% \\
-0.05 to 0.95 & 23 & 43 to 50\% \\
-0.95 or more & 28 & 82\% \\
-\end{longtable}
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.6\linewidth]{fig_ushape.pdf}
+\caption{Share of robust cases by the configuration's own accuracy on the original problem, on the 71 cases of the public sample (Wilson 95\% intervals). A configuration that never solves the problem is always robust, one that solves it only some of the time is robust about half the time, and one that almost always solves it is robust in most cases.}
+\label{fig:ushape}
+\end{figure}
 
 ``Robust if own accuracy is below 0.05 or at least 0.95'' reaches 0.78 accuracy and 0.75 balanced accuracy there. With the expert ``no solution'' perturbation included the top group drops to 36\% robust: a configuration that always answers loses accuracy when it keeps answering a problem that has no answer.
 

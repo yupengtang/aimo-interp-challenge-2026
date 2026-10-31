@@ -49,6 +49,7 @@ PREAMBLE = r"""\documentclass{article}
 \usepackage{microtype}
 \usepackage{xcolor}
 \usepackage{longtable,array,calc}
+\usepackage{graphicx}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
 \providecommand{\real}[1]{#1}
 \setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
