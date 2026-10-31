@@ -70,6 +70,9 @@ def main() -> None:
     ap.add_argument("--base", default=os.environ.get("AIMO_BASE", "/path/to/aimo"))
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--target-positive-rate", type=float, default=0.5)
+    ap.add_argument("--drop-prefix", action="append", default=[],
+                    help="leave out features whose name starts with this prefix (repeatable); "
+                         "--drop-prefix cos_ fits the ablation without the hidden-state features")
     args = ap.parse_args()
 
     src = pd.concat([pd.read_parquet(p) for p in glob.glob(f"{args.base}/data/*.parquet")])
@@ -85,7 +88,9 @@ def main() -> None:
 
     st_label = pd.read_csv(f"{args.base}/results/stability/stability_{safe(LABEL_CK)}.csv").drop_duplicates("id").set_index("id")
     F_label = to_depth_features(st_label)
+    F_label = F_label[[c for c in F_label.columns if not c.startswith(tuple(args.drop_prefix))]] if args.drop_prefix else F_label
     feature_names = list(F_label.columns)
+    print(f"{len(feature_names)} features: {feature_names}")
 
     X = F_label.loc[train_cases["problem_id"]].to_numpy(dtype=float)
     y = train_cases["derived_label"].astype(int).to_numpy()
